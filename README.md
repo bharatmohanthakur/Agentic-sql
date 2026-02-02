@@ -215,6 +215,28 @@ pip install -e ".[all]"
 
 ---
 
+## Tutorials & Examples
+
+Learn by doing with our step-by-step tutorials in the [`examples/`](examples/) directory:
+
+| Tutorial | Description |
+|----------|-------------|
+| [01_quickstart.py](examples/01_quickstart.py) | Your first query in 5 minutes |
+| [02_databases.py](examples/02_databases.py) | Connect to MSSQL, PostgreSQL, MySQL, SQLite |
+| [03_auto_learning.py](examples/03_auto_learning.py) | Train the agent automatically |
+| [04_memory_system.py](examples/04_memory_system.py) | Persistent knowledge storage |
+| [05_multi_agent.py](examples/05_multi_agent.py) | Complex workflows with multiple agents |
+| [06_api_server.py](examples/06_api_server.py) | Production REST API with FastAPI |
+| [07_complete_example.py](examples/07_complete_example.py) | Full interactive analytics demo |
+
+```bash
+# Run the complete interactive demo
+cd examples
+python 07_complete_example.py
+```
+
+---
+
 ## Quick Start
 
 ### Basic Usage
