@@ -168,6 +168,171 @@ The system auto-detects and adapts to:
 
 **No configuration needed** - the LLM probes and learns the dialect automatically.
 
+### Database Initialization Examples
+
+#### MS SQL Server
+```python
+from src.database.multi_db import MSSQLAdapter, ConnectionConfig, DatabaseType
+
+db = MSSQLAdapter(ConnectionConfig(
+    name="my_mssql_db",
+    db_type=DatabaseType.MSSQL,
+    host="server.database.windows.net,1433",
+    database="MyDatabase",
+    username="user",
+    password="password",
+))
+await db.connect()
+```
+
+#### PostgreSQL
+```python
+from src.database.multi_db import PostgreSQLAdapter, ConnectionConfig, DatabaseType
+
+db = PostgreSQLAdapter(ConnectionConfig(
+    name="my_postgres_db",
+    db_type=DatabaseType.POSTGRESQL,
+    host="localhost",
+    port=5432,
+    database="mydb",
+    username="postgres",
+    password="password",
+))
+await db.connect()
+```
+
+#### MySQL
+```python
+from src.database.multi_db import MySQLAdapter, ConnectionConfig, DatabaseType
+
+db = MySQLAdapter(ConnectionConfig(
+    name="my_mysql_db",
+    db_type=DatabaseType.MYSQL,
+    host="localhost",
+    port=3306,
+    database="mydb",
+    username="root",
+    password="password",
+))
+await db.connect()
+```
+
+#### SQLite
+```python
+from src.database.multi_db import SQLiteAdapter, ConnectionConfig, DatabaseType
+
+db = SQLiteAdapter(ConnectionConfig(
+    name="my_sqlite_db",
+    db_type=DatabaseType.SQLITE,
+    database="/path/to/database.db",
+))
+await db.connect()
+```
+
+#### Using Connection String
+```python
+from src.database.multi_db import PostgreSQLAdapter, ConnectionConfig, DatabaseType
+
+db = PostgreSQLAdapter(ConnectionConfig(
+    name="my_db",
+    db_type=DatabaseType.POSTGRESQL,
+    connection_string="postgresql://user:pass@localhost:5432/mydb",
+))
+await db.connect()
+```
+
+## Memory System
+
+The system includes a hybrid memory architecture combining Graph + Vector + SQL storage for intelligent context management.
+
+### Memory Types
+
+```python
+from src.memory.manager import MemoryManager, MemoryConfig, MemoryType
+
+# Initialize memory manager
+memory = MemoryManager(MemoryConfig(
+    vector_store_path="./vector_store",
+    graph_store_path="./graph_store",
+    sql_store_path="./memory.db",
+))
+
+# Memory types available:
+MemoryType.CONVERSATION    # Chat history
+MemoryType.ENTITY_FACT     # Facts about entities
+MemoryType.SCHEMA          # Database schema knowledge
+MemoryType.QUERY_PATTERN   # Successful SQL patterns
+MemoryType.ERROR_PATTERN   # Error patterns to avoid
+MemoryType.USER_PREFERENCE # User-specific preferences
+MemoryType.SEMANTIC        # General semantic knowledge
+```
+
+### ECL Pipeline (Extract, Cognify, Load)
+
+The memory system uses the ECL pattern for knowledge management:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    ECL PIPELINE                           │
+├──────────────────────────────────────────────────────────┤
+│  EXTRACT    │  COGNIFY         │  LOAD                   │
+│             │                  │                         │
+│  Parse raw  │  Enrich with     │  Store in hybrid       │
+│  content    │  embeddings &    │  storage (Graph +      │
+│             │  relationships   │  Vector + SQL)         │
+└──────────────────────────────────────────────────────────┘
+```
+
+```python
+# Add memory with automatic processing
+await memory.add(
+    content="SELECT * FROM users WHERE active = true",
+    memory_type=MemoryType.QUERY_PATTERN,
+    metadata={"table": "users", "success": True},
+)
+
+# Search with hybrid retrieval
+results = await memory.search(
+    query="user queries",
+    memory_types=[MemoryType.QUERY_PATTERN],
+    limit=5,
+)
+```
+
+### Memory Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   MEMORY LEVELS                          │
+├─────────────────────────────────────────────────────────┤
+│  SESSION     │ Current conversation context             │
+│  USER        │ User preferences and patterns            │
+│  ENTITY      │ Facts about database entities            │
+│  GLOBAL      │ Shared knowledge across all users        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Integration with MetaAgent
+
+```python
+from src.intelligence.meta_agent import MetaAgent
+from src.memory.manager import MemoryManager, MemoryConfig
+
+# Create memory manager
+memory = MemoryManager(MemoryConfig())
+
+# Create agent with memory
+agent = MetaAgent(
+    llm_client=llm,
+    memory_manager=memory,  # Optional memory integration
+)
+
+# Memories are automatically stored:
+# - Successful queries → QUERY_PATTERN
+# - Schema discoveries → SCHEMA
+# - Error patterns → ERROR_PATTERN
+```
+
 ## Test Results
 
 Comprehensive testing on a legislation database:
