@@ -15,6 +15,8 @@ A truly intelligent Text-to-SQL framework that works on **ANY database** with **
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Installation](#installation)
+- [Dependencies](#dependencies)
+- [Tutorials & Examples](#tutorials--examples)
 - [Quick Start](#quick-start)
 - [Database Support](#database-support)
 - [Memory System](#memory-system)
@@ -22,6 +24,7 @@ A truly intelligent Text-to-SQL framework that works on **ANY database** with **
 - [API Server](#api-server)
 - [Security](#security)
 - [Configuration](#configuration)
+- [API Reference](#api-reference)
 - [Test Results](#test-results)
 - [Contributing](#contributing)
 
@@ -84,18 +87,38 @@ results = await agent.auto_learn(intensity="medium")
 │                      AUTO-LEARN FLOW                         │
 ├─────────────────────────────────────────────────────────────┤
 │  Step 1: LLM explores database and understands domain       │
-│  Step 2: LLM generates diverse test questions               │
-│  Step 3: LLM runs questions and learns from results         │
-│  Step 4: LLM identifies weak areas                          │
-│  Step 5: LLM generates targeted questions to improve        │
-│  Step 6: Knowledge is persisted for future sessions         │
+│  Step 2: Calculate questions based on schema complexity     │
+│  Step 3: LLM generates diverse test questions per table     │
+│  Step 4: LLM runs questions and learns from results         │
+│  Step 5: LLM identifies weak areas                          │
+│  Step 6: LLM generates targeted questions to improve        │
+│  Step 7: Knowledge is persisted for future sessions         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**Dynamic Question Calculation:**
+
+Training questions are calculated based on your database schema, not hardcoded:
+
+```
+Formula: (tables × 2) + (columns ÷ 10) + (relationships ÷ 3) × intensity_multiplier
+```
+
+| Database Size | Tables | Columns | Light | Medium | Heavy | Exhaustive |
+|---------------|--------|---------|-------|--------|-------|------------|
+| Tiny          | 2      | 4       | 3     | 3      | 5     | 7          |
+| Small         | 5      | 17      | 4     | 8      | 14    | 21         |
+| Medium        | 15     | 68      | 13    | 27     | 45    | 67         |
+| Large         | 40     | 334     | 39    | 78     | 100   | 100        |
+| Very Large    | 80     | 880     | 82    | 100    | 100   | 100        |
+
 **Intensity Levels:**
-- `light` - 5 questions, quick validation
-- `medium` - 15 questions, standard training
-- `heavy` - 30 questions, comprehensive learning
+- `light` - 0.3× multiplier, quick validation
+- `medium` - 0.6× multiplier, balanced coverage
+- `heavy` - 1.0× multiplier, comprehensive learning
+- `exhaustive` - 1.5× multiplier, deep training
+
+**Bounds:** Minimum 3 questions, Maximum 100 questions (to prevent excessive API calls)
 
 ### 3. Intelligent Query Processing
 
@@ -212,6 +235,78 @@ pip install -e ".[viz]"
 # Full installation
 pip install -e ".[all]"
 ```
+
+---
+
+## Dependencies
+
+### Core Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `openai` | ≥2.16.0 | OpenAI/Azure OpenAI LLM client |
+| `pydantic` | ≥2.0.0 | Data validation and settings |
+| `pyodbc` | ≥5.3.0 | MS SQL Server connectivity |
+| `python-dotenv` | ≥1.2.1 | Environment variable management |
+| `typing-extensions` | ≥4.0.0 | Extended type hints |
+
+### Optional Dependencies
+
+Install specific extras based on your needs:
+
+```bash
+# LLM Providers
+pip install -e ".[openai]"      # OpenAI (included in core)
+pip install -e ".[anthropic]"   # Anthropic Claude
+pip install -e ".[all-llms]"    # All LLM providers (OpenAI, Anthropic, Google)
+
+# Database Adapters
+pip install -e ".[postgres]"    # PostgreSQL (asyncpg, psycopg2)
+pip install -e ".[mysql]"       # MySQL (aiomysql)
+pip install -e ".[sqlite]"      # SQLite (aiosqlite)
+pip install -e ".[snowflake]"   # Snowflake
+pip install -e ".[bigquery]"    # Google BigQuery
+
+# Memory & Storage
+pip install -e ".[vector]"      # Vector store (ChromaDB, pgvector)
+pip install -e ".[graph]"       # Graph store (Neo4j)
+pip install -e ".[memory]"      # Full memory system
+
+# API & Auth
+pip install -e ".[api]"         # FastAPI server (FastAPI, uvicorn, SSE)
+pip install -e ".[auth]"        # JWT authentication
+
+# Visualization
+pip install -e ".[viz]"         # Charts (Plotly, Pandas)
+
+# Development
+pip install -e ".[dev]"         # Testing & linting tools
+```
+
+### Full Dependency Matrix
+
+| Extra | Packages |
+|-------|----------|
+| `openai` | openai≥1.0.0 |
+| `anthropic` | anthropic≥0.18.0 |
+| `all-llms` | openai, anthropic, google-generativeai |
+| `api` | fastapi≥0.100.0, uvicorn≥0.22.0, sse-starlette≥1.6.0 |
+| `auth` | PyJWT≥2.8.0 |
+| `postgres` | asyncpg≥0.28.0, psycopg2-binary≥2.9.0 |
+| `mysql` | aiomysql≥0.2.0 |
+| `sqlite` | aiosqlite≥0.19.0 |
+| `snowflake` | snowflake-connector-python≥3.0.0 |
+| `bigquery` | google-cloud-bigquery≥3.0.0 |
+| `vector` | chromadb≥0.4.0, pgvector≥0.2.0 |
+| `graph` | neo4j≥5.0.0 |
+| `viz` | plotly≥5.0.0, pandas≥2.0.0 |
+| `dev` | pytest, pytest-asyncio, black, ruff, mypy |
+
+### System Requirements
+
+- **Python**: 3.10, 3.11, or 3.12
+- **MS SQL Server**: ODBC Driver 17 or 18 (for MSSQL connections)
+- **Memory**: 4GB+ RAM recommended for vector embeddings
 
 ---
 
@@ -824,7 +919,9 @@ class MetaAgent:
         Self-train on the connected database.
 
         Args:
-            intensity: "light" (5), "medium" (15), or "heavy" (30) questions
+            intensity: "light", "medium", "heavy", or "exhaustive"
+                      Questions calculated dynamically based on schema:
+                      (tables × 2 + columns/10 + relationships/3) × multiplier
 
         Returns:
             {
@@ -834,6 +931,9 @@ class MetaAgent:
                 "successes": int,
                 "failures": int,
                 "success_rate": float,
+                "schema_stats": {"tables": int, "total_columns": int},
+                "target_questions": int,
+                "intensity": str,
             }
         """
 
