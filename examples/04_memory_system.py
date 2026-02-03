@@ -224,27 +224,43 @@ async def main():
     print("[Step 7] Integration with MetaAgent...")
 
     print("""
-    The MetaAgent automatically uses memory for:
+    The MetaAgent can use MemoryManager for advanced storage:
     - Storing successful SQL patterns (QUERY_PATTERN)
     - Remembering schema insights (SCHEMA)
     - Learning from errors (ERROR_PATTERN)
-    - User-specific adaptations (USER_PREFERENCE)
+    - Semantic search for similar past solutions
 
     Example:
     ```python
     from intelligence.meta_agent import MetaAgent
     from memory.manager import MemoryManager, MemoryConfig
+    from memory.stores import SQLiteMemoryStore, ChromaMemoryStore
+    from memory.stores.sqlite_store import SQLiteConfig
+    from memory.stores.chroma_store import ChromaConfig
 
-    # Create memory manager
-    memory = MemoryManager(MemoryConfig())
+    # 1. Setup stores
+    sql_store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
+    vector_store = ChromaMemoryStore(ChromaConfig(path="./chroma"))
+    await sql_store.connect()
+    await vector_store.connect()
 
-    # Create agent with memory
-    agent = MetaAgent(
-        llm_client=llm,
-        memory_manager=memory,  # Pass memory manager
+    # 2. Create memory manager with stores
+    memory = MemoryManager(
+        config=MemoryConfig(enable_sql=True, enable_vector=True),
+        sql_store=sql_store,
+        vector_store=vector_store,
     )
 
-    # Now the agent remembers everything!
+    # 3. Create agent with memory_manager parameter
+    agent = MetaAgent(
+        llm_client=llm,
+        memory_manager=memory,  # <-- Pass memory manager here!
+    )
+
+    # 4. Agent now stores learnings in memory stores
+    # and uses semantic search in RESEARCH phase
+    await agent.connect(db_executor=db.execute)
+    result = await agent.query("Show top customers")
     ```
     """)
 

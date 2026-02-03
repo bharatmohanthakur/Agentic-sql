@@ -208,7 +208,59 @@ if __name__ == "__main__":
 
 ## Optional: Add Memory Storage
 
-The MetaAgent uses a simple JSON file by default. For advanced scenarios, you can add persistent storage backends:
+The MetaAgent uses a simple JSON file by default (`~/.vanna/meta_agent.json`). For advanced scenarios with semantic search and persistent storage, pass a `MemoryManager` to the agent:
+
+### Complete Example with Memory Stores
+
+```python
+import asyncio
+from src.intelligence.meta_agent import MetaAgent
+from src.llm.azure_openai_client import AzureOpenAIClient, AzureOpenAIConfig
+from src.database.multi_db import MSSQLAdapter, ConnectionConfig, DatabaseType
+from src.memory.manager import MemoryManager, MemoryConfig
+from src.memory.stores import SQLiteMemoryStore, ChromaMemoryStore
+from src.memory.stores.sqlite_store import SQLiteConfig
+from src.memory.stores.chroma_store import ChromaConfig
+
+async def main():
+    # 1. Setup LLM
+    llm = AzureOpenAIClient(AzureOpenAIConfig(
+        api_key="your-key",
+        azure_endpoint="https://your-endpoint.openai.azure.com",
+        azure_deployment="gpt-4o",
+    ))
+
+    # 2. Setup memory stores
+    sql_store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
+    vector_store = ChromaMemoryStore(ChromaConfig(path="./chroma_data"))
+    await sql_store.connect()
+    await vector_store.connect()
+
+    # 3. Create MemoryManager
+    memory = MemoryManager(
+        config=MemoryConfig(enable_sql=True, enable_vector=True),
+        sql_store=sql_store,
+        vector_store=vector_store,
+    )
+
+    # 4. Create agent WITH memory_manager
+    agent = MetaAgent(
+        llm_client=llm,
+        memory_manager=memory,  # <-- Pass memory here!
+    )
+
+    # 5. Connect to database
+    db = MSSQLAdapter(ConnectionConfig(...))
+    await db.connect()
+    await agent.connect(db_executor=db.execute)
+
+    # 6. Query - agent now stores/retrieves from memory stores!
+    result = await agent.query("Show top customers by revenue")
+
+asyncio.run(main())
+```
+
+### Store Options
 
 === "SQLite (No Server)"
 

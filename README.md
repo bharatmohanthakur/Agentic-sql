@@ -417,48 +417,44 @@ llm = AzureOpenAIClient(AzureOpenAIConfig(
 
 ### Adding Memory Storage (Optional)
 
-The MetaAgent uses a simple JSON file by default (`~/.vanna/meta_agent.json`). For advanced use cases with hybrid memory, use the MemoryManager with storage backends:
+The MetaAgent uses a simple JSON file by default (`~/.vanna/meta_agent.json`). For advanced use cases with semantic search and persistent storage, pass a `MemoryManager` to the agent:
 
 ```python
-from src.memory.manager import MemoryManager, MemoryConfig, MemoryType
-
-# 1. Choose your storage backends
+from src.intelligence.meta_agent import MetaAgent
+from src.memory.manager import MemoryManager, MemoryConfig
 from src.memory.stores import SQLiteMemoryStore, ChromaMemoryStore
 from src.memory.stores.sqlite_store import SQLiteConfig
 from src.memory.stores.chroma_store import ChromaConfig
 
-# 2. Configure and connect stores
+# 1. Setup memory stores
 sql_store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
 vector_store = ChromaMemoryStore(ChromaConfig(path="./chroma_data"))
-
 await sql_store.connect()
 await vector_store.connect()
 
-# 3. Create MemoryManager with your stores
-memory_manager = MemoryManager(
-    config=MemoryConfig(
-        enable_sql=True,
-        enable_vector=True,
-        enable_graph=False,
-    ),
+# 2. Create MemoryManager
+memory = MemoryManager(
+    config=MemoryConfig(enable_sql=True, enable_vector=True),
     sql_store=sql_store,
     vector_store=vector_store,
 )
 
-# 4. Store memories with ECL pipeline
-await memory_manager.ingest(
-    content="SELECT COUNT(*) FROM users WHERE active = true",
-    memory_type=MemoryType.QUERY_PATTERN,
-    metadata={"question": "How many active users?", "success": True},
+# 3. Create agent WITH memory_manager
+agent = MetaAgent(
+    llm_client=llm,
+    memory_manager=memory,  # <-- Pass memory here!
 )
 
-# 5. Search memories
-results = await memory_manager.search(
-    query="active users count",
-    memory_type=MemoryType.QUERY_PATTERN,
-    limit=5,
-)
+# 4. Connect and query - agent automatically stores/retrieves from memory!
+await agent.connect(db_executor=db.execute)
+result = await agent.query("Show top customers")
 ```
+
+**What happens with memory_manager:**
+- Successful queries are stored in both JSON file AND memory stores
+- Failed queries/errors are stored for learning
+- RESEARCH phase uses semantic search to find similar past solutions
+- Works with any combination of stores (SQL, Vector, Graph)
 
 **Quick Store Selection:**
 

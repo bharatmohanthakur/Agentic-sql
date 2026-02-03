@@ -84,12 +84,50 @@ class MetaAgent:
     5. LEARNS - Updates knowledge from EVERY interaction
 
     NO RULES. NO PATTERNS. PURE LLM INTELLIGENCE.
+
+    Args:
+        llm_client: LLM client for AI processing (required)
+        storage_path: Path for JSON knowledge file (default: ~/.vanna/meta_agent.json)
+        memory_manager: Optional MemoryManager for advanced storage backends
+                       (SQLite, ChromaDB, Qdrant, OpenSearch, Neo4j)
+
+    Example with memory stores:
+        ```python
+        from memory.manager import MemoryManager, MemoryConfig
+        from memory.stores import SQLiteMemoryStore, ChromaMemoryStore
+        from memory.stores.sqlite_store import SQLiteConfig
+        from memory.stores.chroma_store import ChromaConfig
+
+        # Setup stores
+        sql_store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
+        vector_store = ChromaMemoryStore(ChromaConfig(path="./chroma"))
+        await sql_store.connect()
+        await vector_store.connect()
+
+        # Create memory manager
+        memory = MemoryManager(
+            config=MemoryConfig(enable_sql=True, enable_vector=True),
+            sql_store=sql_store,
+            vector_store=vector_store,
+        )
+
+        # Create agent with memory
+        agent = MetaAgent(llm_client=llm, memory_manager=memory)
+        ```
     """
 
-    def __init__(self, llm_client: Any, storage_path: Optional[Path] = None):
+    def __init__(
+        self,
+        llm_client: Any,
+        storage_path: Optional[Path] = None,
+        memory_manager: Optional[Any] = None,  # Optional MemoryManager for advanced storage
+    ):
         self.llm = llm_client
         self.storage_path = storage_path or Path.home() / ".vanna" / "meta_agent.json"
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Optional advanced memory manager (for vector/graph stores)
+        self.memory_manager = memory_manager
 
         # Database
         self._db_executor: Optional[Callable] = None
@@ -100,7 +138,8 @@ class MetaAgent:
         self.knowledge = MetaKnowledge()
         self._load_knowledge()
 
-        logger.info("MetaAgent initialized - Pure intelligence, no rules")
+        storage_info = "with MemoryManager" if memory_manager else f"JSON file: {self.storage_path}"
+        logger.info(f"MetaAgent initialized - {storage_info}")
 
     # =========================================================================
     # KNOWLEDGE PERSISTENCE
@@ -409,20 +448,43 @@ APPROACH_HINT: <suggested approach>"""
     async def _research(self, question: str, problem_analysis: Dict, trace: Dict) -> Dict:
         """
         RESEARCH phase: Find what approaches worked for similar problems.
-        LLM searches through past successes and failures.
+
+        Searches:
+        1. Local MetaKnowledge (JSON) - always
+        2. MemoryManager (if provided) - for semantic/vector search
         """
         problem_type = problem_analysis.get("type", "unknown")
 
-        # Find similar successful solutions
+        # Find similar successful solutions from local knowledge
         similar_solutions = []
         for sol in self.knowledge.successful_solutions[-30:]:
-            # LLM will match by similarity, not exact type
             similar_solutions.append({
                 "question": sol.question[:60],
                 "sql": sol.sql[:100],
                 "type": sol.problem_type,
                 "was_corrected": sol.was_corrected,
             })
+
+        # Also search MemoryManager if available (semantic search)
+        if self.memory_manager:
+            try:
+                from memory.manager import MemoryType
+                memory_results = await self.memory_manager.search(
+                    query=question,
+                    memory_type=MemoryType.QUERY_PATTERN,
+                    limit=5,
+                )
+                for mem in memory_results:
+                    similar_solutions.append({
+                        "question": mem.metadata.get("question", "")[:60],
+                        "sql": mem.content[:100],
+                        "type": mem.metadata.get("problem_type", "unknown"),
+                        "was_corrected": mem.metadata.get("was_corrected", False),
+                        "source": "memory_manager",  # Mark source
+                    })
+                logger.debug(f"Found {len(memory_results)} solutions from MemoryManager")
+            except Exception as e:
+                logger.warning(f"MemoryManager search failed: {e}")
 
         # Find relevant failures to avoid
         relevant_failures = []
@@ -707,6 +769,10 @@ Response:"""
         """
         LEARN phase: Update knowledge from EVERY interaction.
         Learn from success AND failure.
+
+        Stores in:
+        1. Local MetaKnowledge (JSON file) - always
+        2. MemoryManager (if provided) - for advanced storage backends
         """
         problem_type = result.get("problem_type", "unknown")
         success = result.get("success", False)
@@ -722,6 +788,20 @@ Response:"""
                 timestamp=datetime.utcnow().isoformat(),
             )
             self.knowledge.successful_solutions.append(solution)
+
+            # Also store in MemoryManager if available
+            if self.memory_manager:
+                await self._store_to_memory_manager(
+                    content=result.get("sql", ""),
+                    memory_type="query_pattern",
+                    metadata={
+                        "question": question,
+                        "problem_type": problem_type,
+                        "success": True,
+                        "iterations": result.get("iterations", 1),
+                        "was_corrected": result.get("iterations", 1) > 1,
+                    }
+                )
 
             # If corrections worked, learn from them
             if trace.get("corrections"):
@@ -749,9 +829,56 @@ Response:"""
             )
             self.knowledge.failed_attempts.append(failure)
 
+            # Also store in MemoryManager if available
+            if self.memory_manager:
+                await self._store_to_memory_manager(
+                    content=f"Error: {result.get('error', '')[:200]}",
+                    memory_type="error_pattern",
+                    metadata={
+                        "question": question,
+                        "sql": result.get("sql", ""),
+                        "problem_type": problem_type,
+                        "analysis": failure_analysis[:200],
+                    }
+                )
+
             logger.info(f"LEARN: Analyzed failure for future improvement")
 
         self._save_knowledge()
+
+    async def _store_to_memory_manager(
+        self,
+        content: str,
+        memory_type: str,
+        metadata: Dict[str, Any],
+    ) -> None:
+        """Store memory in the MemoryManager if available."""
+        if not self.memory_manager:
+            return
+
+        try:
+            # Import here to avoid circular imports
+            from memory.manager import MemoryType, MemoryPriority
+
+            # Map string type to enum
+            type_map = {
+                "query_pattern": MemoryType.QUERY_PATTERN,
+                "error_pattern": MemoryType.ERROR_PATTERN,
+                "schema": MemoryType.SCHEMA,
+                "semantic": MemoryType.SEMANTIC,
+            }
+            mem_type = type_map.get(memory_type, MemoryType.SEMANTIC)
+
+            await self.memory_manager.ingest(
+                content=content,
+                memory_type=mem_type,
+                metadata=metadata,
+                priority=MemoryPriority.HIGH if metadata.get("success") else MemoryPriority.MEDIUM,
+            )
+            logger.debug(f"Stored memory in MemoryManager: {memory_type}")
+
+        except Exception as e:
+            logger.warning(f"Failed to store in MemoryManager: {e}")
 
     async def _analyze_failure(self, question: str, result: Dict, trace: Dict) -> str:
         """LLM analyzes why a query failed - AND extracts actionable corrections"""
