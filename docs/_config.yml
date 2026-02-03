@@ -1,0 +1,38 @@
+title: Agentic SQL
+description: Pure LLM Intelligence for Text-to-SQL
+theme: jekyll-theme-cayman
+show_downloads: true
+google_analytics:
+
+# GitHub repository
+github:
+  repo: bharatmohanthakur/Agentic-sql
+  owner: bharatmohanthakur
+
+# Navigation
+nav:
+  - title: Home
+    url: /
+  - title: Getting Started
+    url: /getting-started
+  - title: API Reference
+    url: /api-reference
+  - title: Databases
+    url: /databases
+  - title: Memory System
+    url: /memory-system
+  - title: Multi-Agent
+    url: /multi-agent
+  - title: Examples
+    url: /examples
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude files
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
