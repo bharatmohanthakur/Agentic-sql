@@ -1,172 +1,217 @@
 ---
-layout: default
-title: Agentic SQL - Pure LLM Intelligence for Text-to-SQL
+hide:
+  - navigation
+  - toc
 ---
 
-# Agentic SQL 2.0
+<div class="hero" markdown>
 
-> **Pure LLM Intelligence for Text-to-SQL**
+# Agentic SQL
 
-A truly intelligent Text-to-SQL framework that works on **ANY database** with **ZERO hardcoded rules**. The system learns, adapts, and improves automatically through pure LLM intelligence.
+**Pure LLM Intelligence for Text-to-SQL**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub](https://img.shields.io/github/stars/bharatmohanthakur/Agentic-sql?style=social)](https://github.com/bharatmohanthakur/Agentic-sql)
+[![GitHub Stars](https://img.shields.io/github/stars/bharatmohanthakur/Agentic-sql?style=social)](https://github.com/bharatmohanthakur/Agentic-sql)
+
+[Get Started](getting-started/installation.md){ .md-button .md-button--primary }
+[View on GitHub](https://github.com/bharatmohanthakur/Agentic-sql){ .md-button }
+
+</div>
 
 ---
 
-## Why Agentic SQL?
+## What is Agentic SQL?
 
-Traditional Text-to-SQL systems rely on:
-- Hardcoded regex patterns for SQL dialects
-- Pre-defined error handling rules
-- Manual training with example queries
-- Fixed prompt templates
+Agentic SQL is a **truly intelligent** Text-to-SQL framework that:
 
-**Agentic SQL is different.** The LLM:
+- Works on **ANY database** without configuration
+- Has **ZERO hardcoded rules** - everything is learned
+- **Auto-discovers** schema and SQL dialect
+- **Self-heals** when errors occur
+- **Learns** from every interaction
 
-| Traditional | Agentic SQL |
-|-------------|-------------|
-| Manual dialect configuration | Auto-discovers SQL dialect |
-| Hardcoded error patterns | LLM analyzes and fixes errors |
-| Fixed training questions | Generates its own test questions |
-| Static prompts | Dynamic prompts per problem |
+```python
+# That's all you need
+agent = MetaAgent(llm_client=llm)
+await agent.connect(db_executor=db.execute)
+result = await agent.query("How many orders last month?")
+```
 
 ---
 
 ## Key Features
 
-### 1. Auto-Discovery
+<div class="feature-grid" markdown>
 
-```python
-await agent.connect(db_executor=database.execute)
-# Output: "LLM detected dialect: mssql, discovered 19 schema insights"
-```
+<div class="feature-card" markdown>
+### :material-magnify: Auto-Discovery
+Automatically detects SQL dialect, discovers schema, identifies relationships, and learns naming conventions.
+</div>
 
-### 2. Auto-Learning
+<div class="feature-card" markdown>
+### :material-brain: Auto-Learning
+Self-trains on your database. Question count dynamically calculated based on schema complexity.
+</div>
 
-```python
-results = await agent.auto_learn(intensity="medium")
-# Automatically trains based on your database complexity
-```
+<div class="feature-card" markdown>
+### :material-wrench: Self-Healing
+Analyzes errors, searches for correct names, learns corrections, and retries automatically.
+</div>
 
-### 3. Self-Healing
+<div class="feature-card" markdown>
+### :material-database: Multi-Database
+Works with MS SQL Server, PostgreSQL, MySQL, SQLite, and more. Same API for all.
+</div>
 
-```python
-# Automatic correction:
-# "LEARNED: 'Categories' should be 'Category'"
-# "LEARNED: For 'category queries' use table 'Legislations'"
-```
+<div class="feature-card" markdown>
+### :material-memory: Persistent Memory
+Hybrid memory with Graph + Vector + SQL stores. Never makes the same mistake twice.
+</div>
 
-### 4. Multi-Database Support
+<div class="feature-card" markdown>
+### :material-robot: Multi-Agent
+Build complex workflows with SQL, Analyst, and Validator agents.
+</div>
 
-Works with **MS SQL Server**, **PostgreSQL**, **MySQL**, **SQLite**, and more.
+</div>
 
 ---
 
 ## Quick Example
 
-```python
-import asyncio
-from src.intelligence.meta_agent import MetaAgent
-from src.llm.azure_openai_client import AzureOpenAIClient, AzureOpenAIConfig
+=== "Basic Query"
 
-async def main():
-    # Setup LLM
-    llm = AzureOpenAIClient(AzureOpenAIConfig(
-        api_key="your-api-key",
-        azure_endpoint="https://your-endpoint.openai.azure.com",
-        azure_deployment="gpt-4o",
-    ))
+    ```python
+    import asyncio
+    from src.intelligence.meta_agent import MetaAgent
+    from src.llm.azure_openai_client import AzureOpenAIClient, AzureOpenAIConfig
 
-    # Create intelligent agent
-    agent = MetaAgent(llm_client=llm)
+    async def main():
+        # Setup LLM
+        llm = AzureOpenAIClient(AzureOpenAIConfig(
+            api_key="your-key",
+            azure_endpoint="https://your-endpoint.openai.azure.com",
+            azure_deployment="gpt-4o",
+        ))
 
-    # Connect to any database
-    await agent.connect(db_executor=database.execute)
+        # Create agent
+        agent = MetaAgent(llm_client=llm)
 
-    # Auto-train (questions based on your schema)
-    await agent.auto_learn(intensity="light")
+        # Connect (auto-discovers everything!)
+        await agent.connect(db_executor=db.execute)
 
-    # Query naturally
-    result = await agent.query("How many orders last month?")
-    print(result["data"])
+        # Query naturally
+        result = await agent.query("Show top 10 customers by revenue")
 
-asyncio.run(main())
-```
+        print(f"SQL: {result['sql']}")
+        print(f"Data: {result['data']}")
 
----
+    asyncio.run(main())
+    ```
 
-## Documentation
+=== "With Auto-Learning"
 
-| Section | Description |
-|---------|-------------|
-| [Getting Started](getting-started) | Installation, setup, and first query |
-| [API Reference](api-reference) | Complete API documentation |
-| [Database Support](databases) | Connecting to different databases |
-| [Memory System](memory-system) | How the agent remembers and learns |
-| [Multi-Agent](multi-agent) | Complex workflows with multiple agents |
-| [Examples](examples) | Real-world code examples |
+    ```python
+    # Connect to database
+    await agent.connect(db_executor=db.execute)
 
----
+    # Auto-train (questions based on schema complexity)
+    results = await agent.auto_learn(intensity="medium")
 
-## Installation
+    print(f"Domain: {results['domain']}")
+    print(f"Success rate: {results['success_rate']*100:.0f}%")
 
-```bash
-# Clone the repository
-git clone https://github.com/bharatmohanthakur/Agentic-sql.git
-cd Agentic-sql
+    # Now queries use learned knowledge
+    result = await agent.query("Which products are low in stock?")
+    ```
 
-# Install with uv (recommended)
-uv sync
+=== "API Server"
 
-# Or with pip
-pip install -e .
-```
+    ```python
+    from src.api.server import create_app, APIConfig
 
-[View full installation guide →](getting-started#installation)
+    app = create_app(
+        config=APIConfig(host="0.0.0.0", port=8000),
+        sql_agent=agent,
+    )
+
+    # Run: uvicorn main:app
+    ```
+
+    ```bash
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -d '{"question": "How many users?"}'
+    ```
 
 ---
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph API["API Layer"]
+        FastAPI[FastAPI + SSE]
+    end
+
+    subgraph Agent["Meta Agent"]
+        Think[THINK]
+        Research[RESEARCH]
+        Design[DESIGN]
+        Execute[EXECUTE]
+        Learn[LEARN]
+        Think --> Research --> Design --> Execute --> Learn
+    end
+
+    subgraph Memory["Memory Manager"]
+        Graph[Graph Store]
+        Vector[Vector Store]
+        SQL[SQL Store]
+    end
+
+    subgraph DB["Database Adapters"]
+        MSSQL[MS SQL]
+        PG[PostgreSQL]
+        MySQL[MySQL]
+        SQLite[SQLite]
+    end
+
+    FastAPI --> Agent
+    Agent --> Memory
+    Agent --> DB
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              API LAYER                                   │
-│                    FastAPI + SSE Streaming + Auth                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│                            META AGENT                                    │
-│           THINK → RESEARCH → DESIGN → EXECUTE → LEARN                   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                         MEMORY MANAGER                                   │
-│              Graph Store + Vector Store + SQL Store                      │
-├─────────────────────────────────────────────────────────────────────────┤
-│                       DATABASE ADAPTERS                                  │
-│      PostgreSQL │ MySQL │ MS SQL Server │ SQLite │ Snowflake            │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+
+---
+
+## Supported Databases
+
+| Database | Status | Auto-Detected Features |
+|----------|--------|------------------------|
+| MS SQL Server | :material-check-circle:{ .status-ready } Ready | TOP, GETDATE, T-SQL |
+| PostgreSQL | :material-check-circle:{ .status-ready } Ready | LIMIT, NOW(), PL/pgSQL |
+| MySQL | :material-check-circle:{ .status-ready } Ready | LIMIT, backticks |
+| SQLite | :material-check-circle:{ .status-ready } Ready | LIMIT, datetime |
+| Snowflake | :material-clock:{ .status-coming } Coming | Warehouse syntax |
+| BigQuery | :material-clock:{ .status-coming } Coming | Standard SQL |
 
 ---
 
 ## Test Results
 
-| Category | Success Rate |
-|----------|--------------|
-| Simple Queries | 100% |
-| Date Queries | 100% |
-| Aggregations | 100% |
-| Complex Joins | 100% |
-| Window Functions | 100% |
-| **Overall** | **100%** |
+| Test Category | Queries | Success Rate |
+|---------------|---------|--------------|
+| Simple Queries | 3 | 100% |
+| Date Queries | 4 | 100% |
+| Aggregations | 3 | 100% |
+| Complex Joins | 3 | 100% |
+| Window Functions | 3 | 100% |
+| **Total** | **23** | **100%** |
 
 ---
 
-## License
+<div style="text-align: center; margin-top: 3rem;" markdown>
 
-MIT License - [View on GitHub](https://github.com/bharatmohanthakur/Agentic-sql/blob/main/LICENSE)
+[Get Started :material-arrow-right:](getting-started/installation.md){ .md-button .md-button--primary }
 
----
-
-<p align="center">
-  <a href="getting-started">Get Started →</a>
-</p>
+</div>

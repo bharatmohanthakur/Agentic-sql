@@ -1,0 +1,128 @@
+site_name: Agentic SQL
+site_url: https://bharatmohanthakur.github.io/Agentic-sql/
+site_description: Pure LLM Intelligence for Text-to-SQL
+site_author: Agentic SQL Team
+repo_name: bharatmohanthakur/Agentic-sql
+repo_url: https://github.com/bharatmohanthakur/Agentic-sql
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - admonition
+  - attr_list
+  - md_in_html
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bharatmohanthakur/Agentic-sql
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/agentic-sql/
+  generator: false
+  version:
+    provider: mike
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+  - User Guide:
+    - Auto-Discovery: guide/auto-discovery.md
+    - Auto-Learning: guide/auto-learning.md
+    - Query Processing: guide/query-processing.md
+    - Self-Healing: guide/self-healing.md
+  - Database Support:
+    - Overview: databases/index.md
+    - MS SQL Server: databases/mssql.md
+    - PostgreSQL: databases/postgresql.md
+    - MySQL: databases/mysql.md
+    - SQLite: databases/sqlite.md
+  - Memory System:
+    - Architecture: memory/architecture.md
+    - Memory Types: memory/types.md
+    - ECL Pipeline: memory/ecl-pipeline.md
+  - Multi-Agent:
+    - Overview: agents/index.md
+    - SQL Agent: agents/sql-agent.md
+    - Workflows: agents/workflows.md
+  - API Reference:
+    - MetaAgent: api/meta-agent.md
+    - LLM Clients: api/llm-clients.md
+    - Database Adapters: api/database-adapters.md
+    - Memory Manager: api/memory-manager.md
+    - API Server: api/server.md
+  - Examples:
+    - Tutorials: examples/tutorials.md
+    - Code Snippets: examples/snippets.md
