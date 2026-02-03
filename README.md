@@ -326,6 +326,7 @@ Learn by doing with our step-by-step tutorials in the [`examples/`](examples/) d
 | [02_databases.py](examples/02_databases.py) | Connect to MSSQL, PostgreSQL, MySQL, SQLite |
 | [03_auto_learning.py](examples/03_auto_learning.py) | Train the agent automatically |
 | [04_memory_system.py](examples/04_memory_system.py) | Persistent knowledge storage |
+| [04_memory_stores.py](examples/04_memory_stores.py) | Using different storage backends (SQLite, Qdrant, OpenSearch, Neo4j) |
 | [05_multi_agent.py](examples/05_multi_agent.py) | Complex workflows with multiple agents |
 | [06_api_server.py](examples/06_api_server.py) | Production REST API with FastAPI |
 | [07_complete_example.py](examples/07_complete_example.py) | Full interactive analytics demo |
@@ -412,6 +413,71 @@ llm = AzureOpenAIClient(AzureOpenAIConfig(
     azure_endpoint="https://your-endpoint.openai.azure.com",
     azure_deployment="gpt-4o",
 ))
+```
+
+### Adding Memory Storage (Optional)
+
+The MetaAgent uses a simple JSON file by default (`~/.vanna/meta_agent.json`). For advanced use cases with hybrid memory, use the MemoryManager with storage backends:
+
+```python
+from src.memory.manager import MemoryManager, MemoryConfig, MemoryType
+
+# 1. Choose your storage backends
+from src.memory.stores import SQLiteMemoryStore, ChromaMemoryStore
+from src.memory.stores.sqlite_store import SQLiteConfig
+from src.memory.stores.chroma_store import ChromaConfig
+
+# 2. Configure and connect stores
+sql_store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
+vector_store = ChromaMemoryStore(ChromaConfig(path="./chroma_data"))
+
+await sql_store.connect()
+await vector_store.connect()
+
+# 3. Create MemoryManager with your stores
+memory_manager = MemoryManager(
+    config=MemoryConfig(
+        enable_sql=True,
+        enable_vector=True,
+        enable_graph=False,
+    ),
+    sql_store=sql_store,
+    vector_store=vector_store,
+)
+
+# 4. Store memories with ECL pipeline
+await memory_manager.ingest(
+    content="SELECT COUNT(*) FROM users WHERE active = true",
+    memory_type=MemoryType.QUERY_PATTERN,
+    metadata={"question": "How many active users?", "success": True},
+)
+
+# 5. Search memories
+results = await memory_manager.search(
+    query="active users count",
+    memory_type=MemoryType.QUERY_PATTERN,
+    limit=5,
+)
+```
+
+**Quick Store Selection:**
+
+```python
+# SQLite - No server, simple file storage
+from src.memory.stores.sqlite_store import SQLiteConfig
+store = SQLiteMemoryStore(SQLiteConfig(db_path="./data.db"))
+
+# Qdrant - High-performance vector search (requires server)
+from src.memory.stores.qdrant_store import QdrantConfig
+store = QdrantMemoryStore(QdrantConfig(host="localhost", port=6333))
+
+# OpenSearch - Hybrid vector + text search (requires cluster)
+from src.memory.stores.opensearch_store import OpenSearchConfig
+store = OpenSearchMemoryStore(OpenSearchConfig(hosts=["https://localhost:9200"]))
+
+# Neo4j - Graph relationships (requires server)
+from src.memory.stores.neo4j_store import Neo4jConfig
+store = Neo4jMemoryStore(Neo4jConfig(uri="bolt://localhost:7687"))
 ```
 
 ---

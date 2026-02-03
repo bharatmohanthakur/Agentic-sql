@@ -206,8 +206,77 @@ if __name__ == "__main__":
 
 ---
 
+## Optional: Add Memory Storage
+
+The MetaAgent uses a simple JSON file by default. For advanced scenarios, you can add persistent storage backends:
+
+=== "SQLite (No Server)"
+
+    ```python
+    from src.memory.stores import SQLiteMemoryStore
+    from src.memory.stores.sqlite_store import SQLiteConfig
+    from src.memory.manager import MemoryManager, MemoryConfig
+
+    # Create store
+    store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
+    await store.connect()
+
+    # Use with MemoryManager
+    memory = MemoryManager(
+        config=MemoryConfig(enable_sql=True),
+        sql_store=store,
+    )
+    ```
+
+=== "ChromaDB (Local Vector)"
+
+    ```python
+    from src.memory.stores import ChromaMemoryStore
+    from src.memory.stores.chroma_store import ChromaConfig
+
+    store = ChromaMemoryStore(ChromaConfig(
+        path="./chroma_data",
+        collection_name="sql_memories",
+    ))
+    await store.connect()
+    ```
+
+=== "Qdrant (Production Vector)"
+
+    ```python
+    from src.memory.stores import QdrantMemoryStore
+    from src.memory.stores.qdrant_store import QdrantConfig
+
+    store = QdrantMemoryStore(QdrantConfig(
+        host="localhost",
+        port=6333,
+        collection_name="sql_memories",
+    ))
+    await store.connect()
+    ```
+
+=== "OpenSearch (Hybrid)"
+
+    ```python
+    from src.memory.stores import OpenSearchMemoryStore
+    from src.memory.stores.opensearch_store import OpenSearchConfig
+
+    store = OpenSearchMemoryStore(OpenSearchConfig(
+        hosts=["https://localhost:9200"],
+        index_name="sql_memories",
+        username="admin",
+        password="admin",
+    ))
+    await store.connect()
+    ```
+
+See [Storage Backends](../memory/stores.md) for full documentation.
+
+---
+
 ## Next Steps
 
 - [Auto-Learning](../guide/auto-learning.md) - Train the agent on your database
 - [Query Processing](../guide/query-processing.md) - How queries work
+- [Storage Backends](../memory/stores.md) - Configure memory storage
 - [API Reference](../api/meta-agent.md) - Full API documentation
