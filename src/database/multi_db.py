@@ -267,6 +267,126 @@ class SQLiteAdapter(DatabaseAdapter):
         return str(result)
 
 
+class SnowflakeAdapter(DatabaseAdapter):
+    """Snowflake database adapter using snowflake-connector-python"""
+
+    async def connect(self) -> None:
+        try:
+            import snowflake.connector
+            import asyncio
+
+            # Extract Snowflake-specific options
+            account = self.config.options.get("account") or self.config.host
+            warehouse = self.config.options.get("warehouse")
+            role = self.config.options.get("role")
+            schema = self.config.options.get("schema", "PUBLIC")
+            authenticator = self.config.options.get("authenticator")
+
+            # Build connection parameters
+            conn_params = {
+                "account": account,
+                "user": self.config.username,
+                "password": self.config.password,
+                "database": self.config.database,
+                "schema": schema,
+            }
+
+            # Add optional parameters
+            if warehouse:
+                conn_params["warehouse"] = warehouse
+            if role:
+                conn_params["role"] = role
+            if authenticator:
+                conn_params["authenticator"] = authenticator
+
+            # Run sync connection in executor
+            loop = asyncio.get_event_loop()
+            self._connection = await loop.run_in_executor(
+                None, lambda: snowflake.connector.connect(**conn_params)
+            )
+            logger.info(f"Connected to Snowflake: {self.config.database}")
+
+        except ImportError:
+            raise ImportError(
+                "snowflake-connector-python required: pip install snowflake-connector-python"
+            )
+
+    async def disconnect(self) -> None:
+        if self._connection:
+            self._connection.close()
+            self._connection = None
+
+    async def execute(
+        self,
+        sql: str,
+        params: Optional[Dict] = None,
+    ) -> List[Dict]:
+        import asyncio
+
+        if not self._connection:
+            await self.connect()
+
+        def _execute():
+            cursor = self._connection.cursor()
+            try:
+                if params:
+                    cursor.execute(sql, params)
+                else:
+                    cursor.execute(sql)
+
+                # Check if query returns results
+                if cursor.description:
+                    columns = [col[0] for col in cursor.description]
+                    rows = cursor.fetchall()
+                    return [dict(zip(columns, row)) for row in rows]
+                return []
+            finally:
+                cursor.close()
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _execute)
+
+    async def get_schema(self) -> Dict[str, Any]:
+        """Get Snowflake schema"""
+        # Get tables
+        tables_sql = """
+        SELECT TABLE_NAME as table_name, TABLE_SCHEMA as table_schema, TABLE_TYPE as table_type
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = CURRENT_SCHEMA()
+        """
+        tables = await self.execute(tables_sql)
+
+        # Get columns
+        columns_sql = """
+        SELECT TABLE_NAME as table_name, COLUMN_NAME as column_name,
+               DATA_TYPE as data_type, IS_NULLABLE as is_nullable,
+               CHARACTER_MAXIMUM_LENGTH as max_length,
+               NUMERIC_PRECISION as precision, NUMERIC_SCALE as scale
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = CURRENT_SCHEMA()
+        ORDER BY TABLE_NAME, ORDINAL_POSITION
+        """
+        columns = await self.execute(columns_sql)
+
+        # Group columns by table
+        columns_by_table = {}
+        for col in columns:
+            table = col["table_name"]
+            if table not in columns_by_table:
+                columns_by_table[table] = []
+            columns_by_table[table].append(col)
+
+        return {
+            "tables": tables,
+            "columns": columns_by_table,
+        }
+
+    async def explain(self, sql: str) -> str:
+        """Get Snowflake query execution plan"""
+        result = await self.execute(f"EXPLAIN {sql}")
+        return "\n".join(str(row) for row in result)
+
+
 class MSSQLAdapter(DatabaseAdapter):
     """MS SQL Server database adapter using pyodbc"""
 
@@ -394,6 +514,7 @@ class MultiDatabaseManager:
         DatabaseType.MYSQL: MySQLAdapter,
         DatabaseType.SQLITE: SQLiteAdapter,
         DatabaseType.MSSQL: MSSQLAdapter,
+        DatabaseType.SNOWFLAKE: SnowflakeAdapter,
     }
 
     def __init__(self):

@@ -73,6 +73,9 @@ Install extras based on your needs:
     # Anthropic Claude
     pip install -e ".[anthropic]"
 
+    # AWS Bedrock
+    pip install -e ".[bedrock]"
+
     # All LLM providers
     pip install -e ".[all-llms]"
     ```
@@ -81,7 +84,8 @@ Install extras based on your needs:
     |-------|----------|
     | `openai` | openai≥1.0.0 |
     | `anthropic` | anthropic≥0.18.0 |
-    | `all-llms` | openai, anthropic, google-generativeai |
+    | `bedrock` | boto3≥1.28.0 |
+    | `all-llms` | openai, anthropic, google-generativeai, boto3 |
 
 === "Databases"
 
@@ -94,6 +98,9 @@ Install extras based on your needs:
 
     # SQLite
     pip install -e ".[sqlite]"
+
+    # Snowflake
+    pip install -e ".[snowflake]"
     ```
 
     | Extra | Packages |
@@ -102,7 +109,7 @@ Install extras based on your needs:
     | `mysql` | aiomysql≥0.2.0 |
     | `sqlite` | aiosqlite≥0.19.0 |
     | `snowflake` | snowflake-connector-python≥3.0.0 |
-    | `bigquery` | google-cloud-bigquery≥3.0.0 |
+    | `bigquery` | google-cloud-bigquery≥3.0.0 (coming soon) |
 
 === "Memory & Storage"
 

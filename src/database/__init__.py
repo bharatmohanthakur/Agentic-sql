@@ -7,6 +7,7 @@ from .multi_db import (
     MySQLAdapter,
     SQLiteAdapter,
     MSSQLAdapter,
+    SnowflakeAdapter,
     MultiDatabaseManager,
     DatabaseStats,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "MySQLAdapter",
     "SQLiteAdapter",
     "MSSQLAdapter",
+    "SnowflakeAdapter",
     "MultiDatabaseManager",
     "DatabaseStats",
 ]

@@ -12,7 +12,8 @@ Supported databases:
 - PostgreSQL
 - MySQL
 - SQLite
-- (More coming: Oracle, Snowflake, BigQuery)
+- Snowflake
+- (More coming: Oracle, BigQuery)
 
 Run: python examples/02_databases.py
 """
@@ -168,6 +169,44 @@ async def connect_sqlite():
     return db
 
 
+async def connect_snowflake():
+    """
+    Connect to Snowflake Data Cloud
+
+    Requirements:
+    - pip install snowflake-connector-python
+    """
+    from database.multi_db import SnowflakeAdapter, ConnectionConfig, DatabaseType
+
+    db = SnowflakeAdapter(ConnectionConfig(
+        name="snowflake_example",
+        db_type=DatabaseType.SNOWFLAKE,
+        database="MY_DATABASE",
+        username=os.getenv("SNOWFLAKE_USER"),
+        password=os.getenv("SNOWFLAKE_PASSWORD"),
+        options={
+            "account": os.getenv("SNOWFLAKE_ACCOUNT"),  # e.g., "abc12345.us-east-1"
+            "warehouse": "COMPUTE_WH",
+            "role": "ANALYST",
+            "schema": "PUBLIC",
+        },
+    ))
+
+    await db.connect()
+    print(f"✓ Connected to Snowflake: {db.config.database}")
+
+    # Test query
+    result = await db.execute("""
+        SELECT TABLE_NAME
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = CURRENT_SCHEMA()
+        LIMIT 5
+    """)
+    print(f"  Tables: {[r['TABLE_NAME'] for r in result]}")
+
+    return db
+
+
 # =============================================================================
 # USING WITH METAGENT
 # =============================================================================
@@ -231,6 +270,10 @@ async def main():
 
     # --- MySQL ---
     # db = await connect_mysql()
+    # agent = await use_with_agent(db)
+
+    # --- Snowflake ---
+    # db = await connect_snowflake()
     # agent = await use_with_agent(db)
 
     # --- SQLite (easiest to test!) ---

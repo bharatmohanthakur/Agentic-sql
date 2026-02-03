@@ -12,8 +12,9 @@ Agentic SQL works with any SQL database.
 | [PostgreSQL](postgresql.md) | `PostgreSQLAdapter` | :material-check-circle:{ .status-ready } Ready |
 | [MySQL](mysql.md) | `MySQLAdapter` | :material-check-circle:{ .status-ready } Ready |
 | [SQLite](sqlite.md) | `SQLiteAdapter` | :material-check-circle:{ .status-ready } Ready |
-| Snowflake | `SnowflakeAdapter` | :material-clock:{ .status-coming } Coming |
+| [Snowflake](snowflake.md) | `SnowflakeAdapter` | :material-check-circle:{ .status-ready } Ready |
 | BigQuery | `BigQueryAdapter` | :material-clock:{ .status-coming } Coming |
+| Redshift | `RedshiftAdapter` | :material-clock:{ .status-coming } Coming |
 
 ---
 
@@ -30,13 +31,13 @@ print(f"Detected: {stats['dialect']}")  # "mssql", "postgresql", etc.
 
 ## Dialect Differences
 
-| Feature | MS SQL | PostgreSQL | MySQL | SQLite |
-|---------|--------|------------|-------|--------|
-| Row limit | `TOP n` | `LIMIT n` | `LIMIT n` | `LIMIT n` |
-| Current date | `GETDATE()` | `NOW()` | `NOW()` | `datetime('now')` |
-| Identifiers | `[brackets]` | `"quotes"` | `` `backticks` `` | `"quotes"` |
-| Boolean | `1/0` | `true/false` | `1/0` | `1/0` |
-| String concat | `+` | `\|\|` | `CONCAT()` | `\|\|` |
+| Feature | MS SQL | PostgreSQL | MySQL | SQLite | Snowflake |
+|---------|--------|------------|-------|--------|-----------|
+| Row limit | `TOP n` | `LIMIT n` | `LIMIT n` | `LIMIT n` | `LIMIT n` |
+| Current date | `GETDATE()` | `NOW()` | `NOW()` | `datetime('now')` | `CURRENT_TIMESTAMP()` |
+| Identifiers | `[brackets]` | `"quotes"` | `` `backticks` `` | `"quotes"` | `"QUOTES"` |
+| Boolean | `1/0` | `true/false` | `1/0` | `1/0` | `true/false` |
+| String concat | `+` | `\|\|` | `CONCAT()` | `\|\|` | `\|\|` or `CONCAT()` |
 
 ---
 
@@ -101,6 +102,26 @@ print(f"Detected: {stats['dialect']}")  # "mssql", "postgresql", etc.
         name="mydb",
         db_type=DatabaseType.SQLITE,
         database="/path/to/db.sqlite",  # or ":memory:"
+    ))
+    await db.connect()
+    ```
+
+=== "Snowflake"
+
+    ```python
+    from src.database.multi_db import SnowflakeAdapter, ConnectionConfig, DatabaseType
+
+    db = SnowflakeAdapter(ConnectionConfig(
+        name="mydb",
+        db_type=DatabaseType.SNOWFLAKE,
+        database="MY_DATABASE",
+        username="user",
+        password="pass",
+        options={
+            "account": "abc12345.us-east-1",
+            "warehouse": "COMPUTE_WH",
+            "role": "ANALYST",
+        },
     ))
     await db.connect()
     ```

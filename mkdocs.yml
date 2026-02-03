@@ -103,6 +103,9 @@ nav:
     - PostgreSQL: databases/postgresql.md
     - MySQL: databases/mysql.md
     - SQLite: databases/sqlite.md
+    - Snowflake: databases/snowflake.md
+  - LLM Providers:
+    - AWS Bedrock: llm/bedrock.md
   - Memory System:
     - Architecture: memory/architecture.md
     - Memory Types: memory/types.md

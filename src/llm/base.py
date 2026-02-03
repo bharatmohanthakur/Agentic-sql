@@ -175,12 +175,24 @@ class CostTrackingMiddleware(LLMMiddleware):
 
     # Approximate costs per 1K tokens (as of 2024)
     COSTS = {
+        # OpenAI models
         "gpt-4": {"input": 0.03, "output": 0.06},
         "gpt-4-turbo": {"input": 0.01, "output": 0.03},
+        "gpt-4o": {"input": 0.005, "output": 0.015},
         "gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015},
+        # Anthropic direct API
         "claude-3-opus": {"input": 0.015, "output": 0.075},
         "claude-3-sonnet": {"input": 0.003, "output": 0.015},
         "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
+        "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
+        "claude-3-5-haiku": {"input": 0.0008, "output": 0.004},
+        # AWS Bedrock Claude models (same pricing structure)
+        "anthropic.claude-3-opus-20240229-v1:0": {"input": 0.015, "output": 0.075},
+        "anthropic.claude-3-sonnet-20240229-v1:0": {"input": 0.003, "output": 0.015},
+        "anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.00025, "output": 0.00125},
+        "anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 0.003, "output": 0.015},
+        "anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 0.003, "output": 0.015},
+        "anthropic.claude-3-5-haiku-20241022-v1:0": {"input": 0.0008, "output": 0.004},
     }
 
     def __init__(self):

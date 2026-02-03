@@ -13,6 +13,7 @@ Agentic SQL supports multiple LLM providers:
 | Azure OpenAI | `AzureOpenAIClient` | :material-check-circle: Ready |
 | OpenAI | `OpenAIClient` | :material-check-circle: Ready |
 | Anthropic | `AnthropicClient` | :material-check-circle: Ready |
+| AWS Bedrock | `BedrockClient` | :material-check-circle: Ready |
 | Google | `GoogleClient` | :material-clock: Coming |
 | Ollama | `OllamaClient` | :material-clock: Coming |
 
@@ -165,6 +166,80 @@ llm = AnthropicClient(AnthropicConfig(
 
 agent = MetaAgent(llm_client=llm)
 ```
+
+---
+
+## BedrockClient (AWS)
+
+### Configuration
+
+```python
+from src.llm.bedrock_client import BedrockClient, BedrockConfig
+
+config = BedrockConfig(
+    region_name: str = "us-east-1",           # AWS region
+    model: str = "anthropic.claude-3-sonnet-20240229-v1:0",  # Model ID
+    aws_access_key_id: Optional[str] = None,  # AWS access key (optional)
+    aws_secret_access_key: Optional[str] = None,  # AWS secret (optional)
+    temperature: float = 0.3,                 # Optional
+    max_tokens: int = 4096,                   # Optional
+)
+
+llm = BedrockClient(config)
+```
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `region_name` | `str` | No | `"us-east-1"` | AWS region |
+| `model` | `str` | No | `"anthropic.claude-3-sonnet..."` | Bedrock model ID |
+| `aws_access_key_id` | `str` | No | - | AWS access key |
+| `aws_secret_access_key` | `str` | No | - | AWS secret key |
+| `temperature` | `float` | No | `0.3` | Response randomness |
+| `max_tokens` | `int` | No | `4096` | Max response tokens |
+
+### Available Models
+
+| Model ID | Best For |
+|----------|----------|
+| `anthropic.claude-3-5-sonnet-20241022-v2:0` | Best overall |
+| `anthropic.claude-3-5-haiku-20241022-v1:0` | Fast, cost-effective |
+| `anthropic.claude-3-opus-20240229-v1:0` | Complex reasoning |
+| `anthropic.claude-3-sonnet-20240229-v1:0` | General use |
+| `anthropic.claude-3-haiku-20240307-v1:0` | Fast responses |
+
+### Example (IAM Role)
+
+```python
+from src.llm.bedrock_client import BedrockClient, BedrockConfig
+
+# Uses IAM role automatically (recommended for AWS)
+llm = BedrockClient(BedrockConfig(
+    region_name="us-east-1",
+    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+))
+
+agent = MetaAgent(llm_client=llm)
+```
+
+### Example (Explicit Credentials)
+
+```python
+from src.llm.bedrock_client import BedrockClient, BedrockConfig
+import os
+
+llm = BedrockClient(BedrockConfig(
+    region_name="us-east-1",
+    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+))
+
+agent = MetaAgent(llm_client=llm)
+```
+
+See [AWS Bedrock Documentation](../llm/bedrock.md) for more details.
 
 ---
 

@@ -47,8 +47,10 @@ DatabaseType.MSSQL       # MS SQL Server
 DatabaseType.POSTGRESQL  # PostgreSQL
 DatabaseType.MYSQL       # MySQL
 DatabaseType.SQLITE      # SQLite
-DatabaseType.SNOWFLAKE   # Snowflake (coming soon)
+DatabaseType.SNOWFLAKE   # Snowflake
 DatabaseType.BIGQUERY    # Google BigQuery (coming soon)
+DatabaseType.REDSHIFT    # Amazon Redshift (coming soon)
+DatabaseType.CLICKHOUSE  # ClickHouse (coming soon)
 ```
 
 ---
@@ -225,6 +227,61 @@ await db.execute("""
 
 ---
 
+## SnowflakeAdapter
+
+### Example
+
+```python
+from src.database.multi_db import SnowflakeAdapter, ConnectionConfig, DatabaseType
+
+db = SnowflakeAdapter(ConnectionConfig(
+    name="snowflake",
+    db_type=DatabaseType.SNOWFLAKE,
+    database="MY_DATABASE",
+    username="my_user",
+    password="my_password",
+    options={
+        "account": "abc12345.us-east-1",
+        "warehouse": "COMPUTE_WH",
+        "role": "ANALYST",
+        "schema": "PUBLIC",
+    },
+))
+
+await db.connect()
+results = await db.execute("SELECT * FROM my_table LIMIT 10")
+```
+
+### Snowflake Options
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `account` | `str` | Yes | Account identifier (e.g., `abc12345.us-east-1`) |
+| `warehouse` | `str` | No | Virtual warehouse name |
+| `role` | `str` | No | Role to use |
+| `schema` | `str` | No | Schema (default: `PUBLIC`) |
+| `authenticator` | `str` | No | Auth method (`externalbrowser`, `oauth`) |
+
+### SSO Authentication
+
+```python
+db = SnowflakeAdapter(ConnectionConfig(
+    name="snowflake",
+    db_type=DatabaseType.SNOWFLAKE,
+    database="MY_DB",
+    username="user@company.com",
+    options={
+        "account": "abc12345.us-east-1",
+        "warehouse": "COMPUTE_WH",
+        "authenticator": "externalbrowser",
+    },
+))
+```
+
+See [Snowflake Documentation](../databases/snowflake.md) for more details.
+
+---
+
 ## Adapter Interface
 
 All adapters implement this interface:
@@ -276,9 +333,10 @@ print(f"Tables: {stats['tables']}")
 
 The agent automatically detects:
 
-| Feature | MS SQL | PostgreSQL | MySQL | SQLite |
-|---------|--------|------------|-------|--------|
-| Row limit | `TOP` | `LIMIT` | `LIMIT` | `LIMIT` |
-| Current date | `GETDATE()` | `NOW()` | `NOW()` | `datetime('now')` |
-| Identifiers | `[brackets]` | `"quotes"` | `` `backticks` `` | `"quotes"` |
-| Boolean | `1/0` | `true/false` | `1/0` | `1/0` |
+| Feature | MS SQL | PostgreSQL | MySQL | SQLite | Snowflake |
+|---------|--------|------------|-------|--------|-----------|
+| Row limit | `TOP` | `LIMIT` | `LIMIT` | `LIMIT` | `LIMIT` |
+| Current date | `GETDATE()` | `NOW()` | `NOW()` | `datetime('now')` | `CURRENT_TIMESTAMP()` |
+| Identifiers | `[brackets]` | `"quotes"` | `` `backticks` `` | `"quotes"` | `"QUOTES"` |
+| Boolean | `1/0` | `true/false` | `1/0` | `1/0` | `true/false` |
+| Date diff | `DATEDIFF()` | `AGE()` | `DATEDIFF()` | Custom | `DATEDIFF()` |

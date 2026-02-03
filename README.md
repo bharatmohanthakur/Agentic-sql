@@ -258,12 +258,14 @@ Install specific extras based on your needs:
 # LLM Providers
 pip install -e ".[openai]"      # OpenAI (included in core)
 pip install -e ".[anthropic]"   # Anthropic Claude
-pip install -e ".[all-llms]"    # All LLM providers (OpenAI, Anthropic, Google)
+pip install -e ".[bedrock]"     # AWS Bedrock (boto3)
+pip install -e ".[all-llms]"    # All LLM providers (OpenAI, Anthropic, Google, Bedrock)
 
 # Database Adapters
 pip install -e ".[postgres]"    # PostgreSQL (asyncpg, psycopg2)
 pip install -e ".[mysql]"       # MySQL (aiomysql)
 pip install -e ".[sqlite]"      # SQLite (aiosqlite)
+pip install -e ".[snowflake]"   # Snowflake (snowflake-connector-python)
 pip install -e ".[snowflake]"   # Snowflake
 pip install -e ".[bigquery]"    # Google BigQuery
 
@@ -413,6 +415,16 @@ llm = AzureOpenAIClient(AzureOpenAIConfig(
     azure_endpoint="https://your-endpoint.openai.azure.com",
     azure_deployment="gpt-4o",
 ))
+
+# AWS Bedrock (Claude models)
+from src.llm.bedrock_client import BedrockClient, BedrockConfig
+llm = BedrockClient(BedrockConfig(
+    region_name="us-east-1",
+    model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    # Uses IAM role by default, or set credentials:
+    # aws_access_key_id="AKIA...",
+    # aws_secret_access_key="...",
+))
 ```
 
 ### Adding Memory Storage (Optional)
@@ -488,8 +500,8 @@ The system auto-detects and adapts to any SQL database:
 | PostgreSQL | `PostgreSQLAdapter` | LIMIT, NOW(), double quotes, PL/pgSQL |
 | MySQL | `MySQLAdapter` | LIMIT, backticks, NOW(), AUTO_INCREMENT |
 | SQLite | `SQLiteAdapter` | LIMIT, datetime functions, no types |
+| Snowflake | `SnowflakeAdapter` | LIMIT, CURRENT_TIMESTAMP(), warehouses, roles |
 | Oracle | Coming Soon | ROWNUM, SYSDATE, PL/SQL |
-| Snowflake | Coming Soon | LIMIT, warehouse syntax |
 | BigQuery | Coming Soon | LIMIT, backticks, standard SQL |
 
 ### Database Initialization Examples
@@ -553,6 +565,27 @@ db = SQLiteAdapter(ConnectionConfig(
     name="my_sqlite_db",
     db_type=DatabaseType.SQLITE,
     database="/path/to/database.db",
+))
+await db.connect()
+```
+
+#### Snowflake
+
+```python
+from src.database.multi_db import SnowflakeAdapter, ConnectionConfig, DatabaseType
+
+db = SnowflakeAdapter(ConnectionConfig(
+    name="my_snowflake_db",
+    db_type=DatabaseType.SNOWFLAKE,
+    database="MY_DATABASE",
+    username="user",
+    password="password",
+    options={
+        "account": "abc12345.us-east-1",  # Account identifier
+        "warehouse": "COMPUTE_WH",
+        "role": "ANALYST",
+        "schema": "PUBLIC",
+    },
 ))
 await db.connect()
 ```

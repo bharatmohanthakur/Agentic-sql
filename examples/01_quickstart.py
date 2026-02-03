@@ -65,6 +65,16 @@ async def main():
     #     model="claude-3-opus-20240229",
     # ))
 
+    # Option D: AWS Bedrock (uncomment to use)
+    # from llm.bedrock_client import BedrockClient, BedrockConfig
+    # llm = BedrockClient(BedrockConfig(
+    #     region_name="us-east-1",
+    #     model="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    #     # Uses IAM role by default, or set explicit credentials:
+    #     # aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    #     # aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    # ))
+
     print("  ✓ LLM client ready")
 
     # =========================================================================
