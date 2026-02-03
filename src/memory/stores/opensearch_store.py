@@ -34,16 +34,32 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OpenSearchConfig:
     """Configuration for OpenSearch connection"""
+    # Connection settings
     hosts: List[str] = field(default_factory=lambda: ["https://localhost:9200"])
-    index_name: str = "agentic_sql_memories"
     username: Optional[str] = None
     password: Optional[str] = None
     use_ssl: bool = True
     verify_certs: bool = False
     ssl_show_warn: bool = False
+    timeout: int = 30  # Request timeout in seconds
+
+    # Index settings
+    index_name: str = "agentic_sql_memories"
+    index_prefix: Optional[str] = None  # Prefix for index name (e.g., "prod_", "dev_")
+
+    # Vector settings
     vector_dimension: int = 1536  # OpenAI embedding size
     ef_construction: int = 512  # HNSW parameter
     m: int = 16  # HNSW parameter
+
+    # Multi-tenancy / Organization
+    namespace: Optional[str] = None  # Logical namespace for isolation
+    tenant_id: Optional[str] = None  # Tenant identifier for multi-tenant apps
+    group_id: Optional[str] = None   # Group identifier (e.g., project, team)
+
+    # Index management
+    number_of_shards: int = 1  # Number of primary shards
+    number_of_replicas: int = 0  # Number of replica shards
 
 
 class OpenSearchMemoryStore(MemoryStore):
@@ -62,6 +78,12 @@ class OpenSearchMemoryStore(MemoryStore):
         self.config = config
         self._client = None
 
+    def _get_index_name(self) -> str:
+        """Get full index name with optional prefix"""
+        if self.config.index_prefix:
+            return f"{self.config.index_prefix}{self.config.index_name}"
+        return self.config.index_name
+
     async def connect(self) -> None:
         """Connect to OpenSearch cluster"""
         try:
@@ -78,10 +100,13 @@ class OpenSearchMemoryStore(MemoryStore):
                 use_ssl=self.config.use_ssl,
                 verify_certs=self.config.verify_certs,
                 ssl_show_warn=self.config.ssl_show_warn,
+                timeout=self.config.timeout,
             )
 
+            index_name = self._get_index_name()
+
             # Create index if not exists
-            index_exists = await self._client.indices.exists(index=self.config.index_name)
+            index_exists = await self._client.indices.exists(index=index_name)
 
             if not index_exists:
                 index_body = {
@@ -89,6 +114,8 @@ class OpenSearchMemoryStore(MemoryStore):
                         "index": {
                             "knn": True,
                             "knn.algo_param.ef_search": 100,
+                            "number_of_shards": self.config.number_of_shards,
+                            "number_of_replicas": self.config.number_of_replicas,
                         },
                     },
                     "mappings": {
@@ -116,17 +143,22 @@ class OpenSearchMemoryStore(MemoryStore):
                             "created_at": {"type": "date"},
                             "access_count": {"type": "integer"},
                             "relevance_score": {"type": "float"},
+                            # Multi-tenancy fields
+                            "namespace": {"type": "keyword"},
+                            "tenant_id": {"type": "keyword"},
+                            "group_id": {"type": "keyword"},
                         },
                     },
                 }
 
                 await self._client.indices.create(
-                    index=self.config.index_name,
+                    index=index_name,
                     body=index_body,
                 )
-                logger.info(f"Created OpenSearch index: {self.config.index_name}")
+                logger.info(f"Created OpenSearch index: {index_name}")
 
-            logger.info(f"Connected to OpenSearch at {self.config.hosts}")
+            namespace_info = f" (namespace={self.config.namespace})" if self.config.namespace else ""
+            logger.info(f"Connected to OpenSearch at {self.config.hosts}{namespace_info}")
 
         except ImportError:
             raise ImportError(
@@ -154,11 +186,19 @@ class OpenSearchMemoryStore(MemoryStore):
                 "relevance_score": memory.relevance_score,
             }
 
+            # Add multi-tenancy fields
+            if self.config.namespace:
+                doc["namespace"] = self.config.namespace
+            if self.config.tenant_id:
+                doc["tenant_id"] = self.config.tenant_id
+            if self.config.group_id:
+                doc["group_id"] = self.config.group_id
+
             if memory.embedding:
                 doc["embedding"] = memory.embedding
 
             await self._client.index(
-                index=self.config.index_name,
+                index=self._get_index_name(),
                 id=str(memory.id),
                 body=doc,
                 refresh=True,
@@ -176,6 +216,9 @@ class OpenSearchMemoryStore(MemoryStore):
         limit: int = 10,
         query_vector: Optional[List[float]] = None,
         use_hybrid: bool = True,
+        namespace: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        group_id: Optional[str] = None,
         **kwargs,
     ) -> List["Memory"]:
         """
@@ -187,6 +230,9 @@ class OpenSearchMemoryStore(MemoryStore):
             limit: Max results to return
             query_vector: Vector for k-NN search
             use_hybrid: Combine vector and text search
+            namespace: Filter by namespace (overrides config)
+            tenant_id: Filter by tenant (overrides config)
+            group_id: Filter by group (overrides config)
         """
         from ..manager import Memory, MemoryType, MemoryPriority
 
@@ -200,6 +246,18 @@ class OpenSearchMemoryStore(MemoryStore):
                 filter_clauses.append({
                     "term": {"type": memory_type.value}
                 })
+
+            # Multi-tenancy filters (use param or fall back to config)
+            effective_namespace = namespace or self.config.namespace
+            effective_tenant = tenant_id or self.config.tenant_id
+            effective_group = group_id or self.config.group_id
+
+            if effective_namespace:
+                filter_clauses.append({"term": {"namespace": effective_namespace}})
+            if effective_tenant:
+                filter_clauses.append({"term": {"tenant_id": effective_tenant}})
+            if effective_group:
+                filter_clauses.append({"term": {"group_id": effective_group}})
 
             # Vector search
             if query_vector:
@@ -251,7 +309,7 @@ class OpenSearchMemoryStore(MemoryStore):
 
             # Execute search
             response = await self._client.search(
-                index=self.config.index_name,
+                index=self._get_index_name(),
                 body=search_body,
             )
 
@@ -284,7 +342,7 @@ class OpenSearchMemoryStore(MemoryStore):
         """Delete memory by ID"""
         try:
             await self._client.delete(
-                index=self.config.index_name,
+                index=self._get_index_name(),
                 id=str(memory_id),
                 refresh=True,
             )
@@ -297,10 +355,43 @@ class OpenSearchMemoryStore(MemoryStore):
         """Update memory (reindex)"""
         return await self.store(memory)
 
-    async def count(self) -> int:
-        """Get total memory count"""
+    async def count(
+        self,
+        namespace: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        group_id: Optional[str] = None,
+    ) -> int:
+        """
+        Get total memory count.
+
+        Args:
+            namespace: Filter by namespace (overrides config)
+            tenant_id: Filter by tenant (overrides config)
+            group_id: Filter by group (overrides config)
+        """
         try:
-            response = await self._client.count(index=self.config.index_name)
+            # Build filter for multi-tenancy
+            effective_namespace = namespace or self.config.namespace
+            effective_tenant = tenant_id or self.config.tenant_id
+            effective_group = group_id or self.config.group_id
+
+            filter_clauses = []
+            if effective_namespace:
+                filter_clauses.append({"term": {"namespace": effective_namespace}})
+            if effective_tenant:
+                filter_clauses.append({"term": {"tenant_id": effective_tenant}})
+            if effective_group:
+                filter_clauses.append({"term": {"group_id": effective_group}})
+
+            if filter_clauses:
+                body = {"query": {"bool": {"filter": filter_clauses}}}
+                response = await self._client.count(
+                    index=self._get_index_name(),
+                    body=body,
+                )
+            else:
+                response = await self._client.count(index=self._get_index_name())
+
             return response["count"]
         except Exception:
             return 0

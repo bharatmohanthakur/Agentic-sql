@@ -155,20 +155,47 @@ results = await store.retrieve(
 )
 ```
 
+### Multi-Tenancy
+
+```python
+config = QdrantConfig(
+    host="localhost",
+    port=6333,
+    collection_name="memories",
+    # Multi-tenancy options
+    namespace="production",      # Logical namespace
+    tenant_id="customer_123",    # Tenant isolation
+    group_id="project_abc",      # Group/project isolation
+)
+
+store = QdrantMemoryStore(config)
+await store.connect()
+
+# Search within namespace/tenant (auto-filtered)
+results = await store.retrieve(query_vector=embedding, limit=10)
+
+# Override filters per query
+results = await store.retrieve(
+    query_vector=embedding,
+    namespace="staging",
+    tenant_id="customer_456",
+)
+```
+
 ### Cloud Deployment
 
 ```python
 config = QdrantConfig(
-    host="your-cluster.qdrant.io",
-    port=6333,
+    url="https://your-cluster.qdrant.io",  # Full URL for cloud
     api_key="your-api-key",
-    https=True,
+    collection_name="memories",
 )
 ```
 
 ### Features
 
 - High-performance vector search
+- Multi-tenancy (namespace, tenant_id, group_id)
 - Payload filtering
 - On-disk storage option
 - HNSW indexing
@@ -220,6 +247,39 @@ text_results = await store.search_text(
 )
 ```
 
+### Multi-Tenancy
+
+```python
+config = OpenSearchConfig(
+    hosts=["https://localhost:9200"],
+    index_name="memories",
+    index_prefix="prod_",         # Index becomes "prod_memories"
+    # Multi-tenancy options
+    namespace="production",       # Stored as document field
+    tenant_id="customer_123",     # Stored as document field
+    group_id="project_abc",       # Stored as document field
+    # Sharding
+    number_of_shards=3,
+    number_of_replicas=1,
+)
+
+store = OpenSearchMemoryStore(config)
+await store.connect()
+
+# Queries auto-filter by namespace/tenant/group
+results = await store.retrieve(query="search term", limit=10)
+
+# Override filters per query
+results = await store.retrieve(
+    query="search term",
+    namespace="staging",
+    tenant_id="customer_456",
+)
+
+# Count within tenant
+count = await store.count(tenant_id="customer_123")
+```
+
 ### HNSW Parameters
 
 ```python
@@ -234,6 +294,8 @@ config = OpenSearchConfig(
 - k-NN vector similarity search
 - BM25 full-text search
 - Hybrid search combining both
+- Multi-tenancy (namespace, tenant_id, group_id)
+- Index prefixing for environments
 - Rich filtering capabilities
 - Scalable and distributed
 
@@ -282,11 +344,44 @@ results = await store.retrieve(
 )
 ```
 
+### Multi-Tenancy
+
+```python
+config = Neo4jConfig(
+    uri="bolt://localhost:7687",
+    username="neo4j",
+    password="password",
+    database="neo4j",
+    # Multi-tenancy options
+    namespace="production",      # Added as node label (NS_production)
+    tenant_id="customer_123",    # Stored as node property
+    group_id="project_abc",      # Stored as node property
+    node_label="Memory",         # Base label for nodes
+    use_namespace_label=True,    # Add namespace as additional label
+)
+
+store = Neo4jMemoryStore(config)
+await store.connect()
+
+# Nodes are labeled: Memory:NS_production
+# Queries auto-filter by namespace/tenant/group
+results = await store.retrieve(query="search term", limit=10)
+
+# Override filters per query
+results = await store.retrieve(
+    query="search term",
+    namespace="staging",
+    tenant_id="customer_456",
+)
+```
+
 ### Features
 
 - Entity relationships
+- Multi-tenancy (namespace as labels, tenant/group as properties)
 - Graph traversal for context expansion
 - Cypher query support
+- Automatic index creation
 - Relationship types
 
 ---
