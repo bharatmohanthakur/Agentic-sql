@@ -269,8 +269,11 @@ pip install -e ".[bigquery]"    # Google BigQuery
 
 # Memory & Storage
 pip install -e ".[vector]"      # Vector store (ChromaDB, pgvector)
+pip install -e ".[qdrant]"      # Qdrant vector store
+pip install -e ".[opensearch]"  # OpenSearch hybrid store
 pip install -e ".[graph]"       # Graph store (Neo4j)
-pip install -e ".[memory]"      # Full memory system
+pip install -e ".[memory]"      # Basic memory (ChromaDB + Neo4j)
+pip install -e ".[memory-all]"  # All memory backends
 
 # API & Auth
 pip install -e ".[api]"         # FastAPI server (FastAPI, uvicorn, SSE)
@@ -298,7 +301,10 @@ pip install -e ".[dev]"         # Testing & linting tools
 | `snowflake` | snowflake-connector-python≥3.0.0 |
 | `bigquery` | google-cloud-bigquery≥3.0.0 |
 | `vector` | chromadb≥0.4.0, pgvector≥0.2.0 |
+| `qdrant` | qdrant-client≥1.7.0 |
+| `opensearch` | opensearch-py≥2.4.0 |
 | `graph` | neo4j≥5.0.0 |
+| `memory-all` | chromadb, neo4j, qdrant-client, opensearch-py, aiosqlite |
 | `viz` | plotly≥5.0.0, pandas≥2.0.0 |
 | `dev` | pytest, pytest-asyncio, black, ruff, mypy |
 
@@ -506,6 +512,16 @@ await db.connect()
 
 The system includes a hybrid memory architecture combining **Graph + Vector + SQL** storage for intelligent context management.
 
+### Storage Backend Options
+
+| Store | Type | Best For | Install |
+|-------|------|----------|---------|
+| SQLite | File-based | Simple deployments | `pip install -e ".[sqlite]"` |
+| ChromaDB | Vector | Semantic search, local | `pip install -e ".[vector]"` |
+| Qdrant | Vector | High-performance | `pip install -e ".[qdrant]"` |
+| OpenSearch | Hybrid | Vector + full-text | `pip install -e ".[opensearch]"` |
+| Neo4j | Graph | Entity relationships | `pip install -e ".[graph]"` |
+
 ### Memory Architecture
 
 ```
@@ -519,6 +535,9 @@ The system includes a hybrid memory architecture combining **Graph + Vector + SQ
 │   │             │  │             │  │             │        │
 │   │ Entities &  │  │ Semantic    │  │ Structured  │        │
 │   │ Relations   │  │ Embeddings  │  │ Persistence │        │
+│   │  (Neo4j)    │  │(Chroma/     │  │  (SQLite)   │        │
+│   │             │  │ Qdrant/     │  │             │        │
+│   │             │  │ OpenSearch) │  │             │        │
 │   └─────────────┘  └─────────────┘  └─────────────┘        │
 │                                                              │
 ├─────────────────────────────────────────────────────────────┤
@@ -597,6 +616,47 @@ related = await memory.get_related(
 │  USER      │ User-specific preferences and patterns         │
 │  SESSION   │ Current conversation context                   │
 └─────────────────────────────────────────────────────────────┘
+```
+
+### Using Different Memory Stores
+
+```python
+from memory.stores import (
+    SQLiteMemoryStore,
+    ChromaMemoryStore,
+    QdrantMemoryStore,
+    OpenSearchMemoryStore,
+    Neo4jMemoryStore,
+)
+
+# SQLite - Simple, no server required
+from memory.stores.sqlite_store import SQLiteConfig
+sqlite_store = SQLiteMemoryStore(SQLiteConfig(db_path="./memories.db"))
+
+# ChromaDB - Local vector search
+from memory.stores.chroma_store import ChromaConfig
+chroma_store = ChromaMemoryStore(ChromaConfig(path="./chroma_data"))
+
+# Qdrant - High-performance vector search
+from memory.stores.qdrant_store import QdrantConfig
+qdrant_store = QdrantMemoryStore(QdrantConfig(host="localhost", port=6333))
+
+# OpenSearch - Hybrid vector + text search
+from memory.stores.opensearch_store import OpenSearchConfig
+opensearch_store = OpenSearchMemoryStore(OpenSearchConfig(
+    hosts=["https://localhost:9200"],
+    username="admin",
+    password="admin",
+))
+
+# Neo4j - Graph relationships
+from memory.stores.neo4j_store import Neo4jConfig
+neo4j_store = Neo4jMemoryStore(Neo4jConfig(uri="bolt://localhost:7687"))
+
+# Connect and use
+await store.connect()
+await store.store(memory)
+results = await store.retrieve("query", limit=10)
 ```
 
 ---

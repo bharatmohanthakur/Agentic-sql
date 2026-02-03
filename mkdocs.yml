@@ -106,6 +106,7 @@ nav:
   - Memory System:
     - Architecture: memory/architecture.md
     - Memory Types: memory/types.md
+    - Storage Backends: memory/stores.md
     - ECL Pipeline: memory/ecl-pipeline.md
   - Multi-Agent:
     - Overview: agents/index.md

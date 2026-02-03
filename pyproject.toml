@@ -77,12 +77,25 @@ vector = [
     "chromadb>=0.4.0",
     "pgvector>=0.2.0",
 ]
+qdrant = [
+    "qdrant-client>=1.7.0",
+]
+opensearch = [
+    "opensearch-py>=2.4.0",
+]
 graph = [
     "neo4j>=5.0.0",
 ]
 memory = [
     "chromadb>=0.4.0",
     "neo4j>=5.0.0",
+]
+memory-all = [
+    "chromadb>=0.4.0",
+    "neo4j>=5.0.0",
+    "qdrant-client>=1.7.0",
+    "opensearch-py>=2.4.0",
+    "aiosqlite>=0.19.0",
 ]
 viz = [
     "plotly>=5.0.0",
@@ -97,7 +110,7 @@ dev = [
     "mypy>=1.0.0",
 ]
 all = [
-    "agentic-sql[all-llms,api,auth,postgres,vector,graph,viz,dev]",
+    "agentic-sql[all-llms,api,auth,postgres,vector,qdrant,opensearch,graph,viz,dev]",
 ]
 
 [project.urls]
