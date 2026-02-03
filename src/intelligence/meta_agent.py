@@ -983,20 +983,86 @@ If no match found, say NONE."""
     # AUTO-LEARN: LLM-driven self-training
     # =========================================================================
 
+    def _calculate_training_questions(self, intensity: str = "medium") -> int:
+        """
+        Calculate optimal number of training questions based on database complexity.
+
+        Factors:
+        - Number of tables
+        - Total columns across all tables
+        - Estimated relationships (tables with foreign key patterns)
+        - Intensity multiplier
+
+        This ensures small databases don't over-train and large databases
+        get adequate coverage.
+        """
+        # Count schema metrics
+        num_tables = len(self._schema)
+        total_columns = sum(
+            len(info.get("columns", []))
+            for info in self._schema.values()
+        )
+
+        # Estimate relationships (tables with id/fk columns)
+        relationship_indicators = 0
+        for table, info in self._schema.items():
+            cols = [c.get("name", "").lower() for c in info.get("columns", [])]
+            # Count FK-like columns (user_id, order_id, etc.)
+            relationship_indicators += sum(
+                1 for c in cols
+                if c.endswith("_id") or c.endswith("_fk") or c == "id"
+            )
+
+        # Base questions: 1-2 per table + 1 per 10 columns + relationship coverage
+        base_questions = max(3, num_tables * 2)  # At least 2 per table
+        column_questions = total_columns // 10   # 1 per 10 columns
+        relationship_questions = relationship_indicators // 3  # Cover joins
+
+        # Calculate total with minimum and maximum bounds
+        calculated = base_questions + column_questions + relationship_questions
+
+        # Intensity multipliers
+        intensity_multipliers = {
+            "light": 0.3,    # Quick scan
+            "medium": 0.6,   # Balanced coverage
+            "heavy": 1.0,    # Full coverage
+            "exhaustive": 1.5,  # Deep training
+        }
+        multiplier = intensity_multipliers.get(intensity, 0.6)
+
+        # Apply multiplier and bounds
+        target = int(calculated * multiplier)
+
+        # Minimum: at least 3 questions (even for tiny databases)
+        # Maximum: cap at 100 to prevent excessive API calls
+        target = max(3, min(target, 100))
+
+        logger.info(
+            f"Training questions calculated: {target} "
+            f"(tables={num_tables}, cols={total_columns}, "
+            f"relationships={relationship_indicators}, intensity={intensity})"
+        )
+
+        return target
+
     async def auto_learn(self, intensity: str = "medium") -> Dict:
         """
         LLM-driven self-learning process:
         1. LLM explores database and understands domain
-        2. LLM generates diverse test questions
+        2. LLM generates diverse test questions (count based on schema complexity)
         3. LLM runs questions and learns from results
         4. LLM identifies weak areas and trains more
 
-        ALL driven by LLM - NO hardcoded questions or patterns.
+        Question count is DYNAMICALLY calculated based on:
+        - Number of tables in database
+        - Total columns across tables
+        - Detected relationships between tables
+        - Intensity level requested
         """
         logger.info(f"AUTO-LEARN: Starting self-training (intensity={intensity})")
 
-        question_counts = {"light": 5, "medium": 15, "heavy": 30}
-        target_questions = question_counts.get(intensity, 15)
+        # Calculate questions based on actual database complexity
+        target_questions = self._calculate_training_questions(intensity)
 
         results = {
             "questions_generated": 0,
@@ -1004,6 +1070,13 @@ If no match found, say NONE."""
             "successes": 0,
             "failures": 0,
             "learnings": [],
+            # Schema-based calculation metadata
+            "schema_stats": {
+                "tables": len(self._schema),
+                "total_columns": sum(len(info.get("columns", [])) for info in self._schema.values()),
+            },
+            "target_questions": target_questions,
+            "intensity": intensity,
         }
 
         # STEP 1: LLM explores and understands the database
@@ -1092,34 +1165,65 @@ QUESTION_TYPES: <what users would ask>"""
             return {"domain": "unknown"}
 
     async def _llm_generate_questions(self, domain: Dict, count: int) -> List[str]:
-        """LLM generates diverse test questions based on domain understanding"""
-
+        """
+        LLM generates diverse test questions based on domain understanding.
+        Question distribution is proportional to database structure.
+        """
+        # Build detailed schema summary
         schema_summary = []
-        for table, info in list(self._schema.items())[:15]:
-            cols = [c["name"] for c in info.get("columns", [])[:10]]
+        table_names = list(self._schema.keys())
+        num_tables = len(table_names)
+
+        for table, info in self._schema.items():
+            cols = [c["name"] for c in info.get("columns", [])[:15]]
             schema_summary.append(f"{table}: {', '.join(cols)}")
 
-        prompt = f"""Generate {count} diverse natural language questions for this database.
+        # Calculate question distribution per table
+        questions_per_table = max(1, count // max(1, num_tables))
+        remaining = count - (questions_per_table * num_tables)
+
+        # Build coverage guidance
+        coverage_guidance = f"""
+COVERAGE REQUIREMENTS:
+- Total questions needed: {count}
+- Tables to cover: {num_tables}
+- Generate at least {questions_per_table} question(s) per table
+- Ensure EVERY table gets at least one question
+- Extra {remaining} questions for complex joins/aggregations
+
+TABLE-SPECIFIC COVERAGE:
+"""
+        for table in table_names[:20]:  # Limit to 20 tables
+            cols = self._schema[table].get("columns", [])
+            col_names = [c.get("name", "") for c in cols[:5]]
+            coverage_guidance += f"- {table} ({len(cols)} columns): ask about {', '.join(col_names[:3])}\n"
+
+        prompt = f"""Generate exactly {count} diverse natural language questions for this database.
 
 DOMAIN: {domain.get('domain', 'unknown')}
 ENTITIES: {domain.get('entities', 'unknown')}
 
 SCHEMA:
-{chr(10).join(schema_summary)}
+{chr(10).join(schema_summary[:25])}
+{coverage_guidance}
 
-Generate {count} questions covering:
-- Simple counts and listings
-- Filtering by conditions
-- Date-based queries
-- Aggregations (totals, averages)
-- Comparisons and rankings
-- Joins between related tables
-- Data quality checks
+QUESTION TYPES TO INCLUDE:
+1. Simple counts ("How many X?")
+2. Listings ("Show all X")
+3. Filtering ("Find X where Y")
+4. Date-based ("X in last month")
+5. Aggregations ("Total/Average of X")
+6. Rankings ("Top 10 X by Y")
+7. Joins ("X with their Y")
+8. Comparisons ("Compare X to Y")
 
+IMPORTANT: Generate exactly {count} questions, covering ALL {num_tables} tables.
 Write as a business user would ask. One question per line. No numbers or bullets."""
 
         try:
-            response = await self.llm.generate(prompt=prompt, max_tokens=800)
+            # Scale max_tokens based on question count (approx 20 tokens per question)
+            max_tokens = min(2000, max(400, count * 25))
+            response = await self.llm.generate(prompt=prompt, max_tokens=max_tokens)
 
             questions = []
             for line in response.split('\n'):
